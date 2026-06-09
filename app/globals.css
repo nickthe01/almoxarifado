@@ -139,6 +139,14 @@ body {
 .status-btn.active-baixo  { background: #ea580c; color: white; }
 .status-btn.active-vazio  { background: #dc2626; color: white; }
 
+/* ── Edit button ── */
+.edit-btn {
+  width: 28px; height: 28px; background: none; border: none; color: #d1d5db;
+  cursor: pointer; border-radius: 6px; font-size: 14px; line-height: 1;
+  display: flex; align-items: center; justify-content: center; transition: all .14s; flex-shrink: 0;
+}
+.edit-btn:hover { background: #eff6ff; color: #2563eb; }
+
 /* ── Delete button ── */
 .delete-btn {
   width: 28px; height: 28px; background: none; border: none; color: #d1d5db;

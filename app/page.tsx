@@ -40,9 +40,13 @@ export default function Home() {
   const [newName, setNewName]           = useState('')
   const [newCategory, setNewCategory]   = useState('Outros')
   const [deleteTarget, setDeleteTarget] = useState<Item | null>(null)
+  const [editTarget, setEditTarget]     = useState<Item | null>(null)
+  const [editName, setEditName]         = useState('')
+  const [editCategory, setEditCategory] = useState('Outros')
   const [lastUpdate, setLastUpdate]     = useState<Date | null>(null)
   const [copied, setCopied]             = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef     = useRef<HTMLInputElement>(null)
+  const editInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadItems()
@@ -56,6 +60,10 @@ export default function Home() {
   useEffect(() => {
     if (showModal) setTimeout(() => inputRef.current?.focus(), 60)
   }, [showModal])
+
+  useEffect(() => {
+    if (editTarget) setTimeout(() => editInputRef.current?.focus(), 60)
+  }, [editTarget])
 
   async function loadItems() {
     const { data } = await supabase.from('almox_items').select('*').order('position')
@@ -81,6 +89,21 @@ export default function Home() {
     setNewName('')
     setNewCategory('Outros')
     setShowModal(false)
+  }
+
+  function openEdit(item: Item) {
+    setEditTarget(item)
+    setEditName(item.name)
+    setEditCategory(item.category)
+  }
+
+  async function saveEdit() {
+    if (!editTarget) return
+    const name = editName.trim()
+    if (!name) return
+    setItems(prev => prev.map(i => i.id === editTarget.id ? { ...i, name, category: editCategory } : i))
+    await supabase.from('almox_items').update({ name, category: editCategory }).eq('id', editTarget.id)
+    setEditTarget(null)
   }
 
   async function confirmDelete() {
@@ -250,6 +273,11 @@ export default function Home() {
                           >{LABELS[s]}</button>
                         ))}
                       </div>
+                      <button className="edit-btn" onClick={() => openEdit(item)} title="Editar item">
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                          <path d="M11.5 2.5a1.5 1.5 0 012.12 2.12l-8 8L3 14l1.38-2.62 8-8z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
                       <button className="delete-btn" onClick={() => setDeleteTarget(item)} title="Remover item">×</button>
                     </div>
                   )
@@ -355,6 +383,36 @@ export default function Home() {
             <div className="modal-actions">
               <button className="btn-cancel" onClick={() => setShowModal(false)}>Cancelar</button>
               <button className="btn-confirm" onClick={addItem}>Adicionar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: editar item ── */}
+      {editTarget && (
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setEditTarget(null) }}>
+          <div className="modal">
+            <h3>Editar item</h3>
+            <input
+              ref={editInputRef}
+              type="text"
+              placeholder="Nome do material..."
+              value={editName}
+              onChange={e => setEditName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && saveEdit()}
+              maxLength={80}
+            />
+            <label className="modal-label">Categoria</label>
+            <select
+              className="modal-select"
+              value={editCategory}
+              onChange={e => setEditCategory(e.target.value)}
+            >
+              {DEFAULT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setEditTarget(null)}>Cancelar</button>
+              <button className="btn-confirm" onClick={saveEdit}>Salvar</button>
             </div>
           </div>
         </div>
