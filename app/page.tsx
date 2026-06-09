@@ -311,16 +311,26 @@ export default function Home() {
                   const trend = getTrend(item)
                   return (
                     <div key={item.id} className="item-row">
-                      <span className="item-name">
-                        <span className={`dot dot-${item.status}`} />
-                        {item.name}
-                        {trend === 'down' && (
-                          <span className="trend trend-down" title="Caindo rápido — mudou nos últimos 7 dias">↓</span>
-                        )}
-                        {trend === 'up' && (
-                          <span className="trend trend-up" title="Estoque melhorou nos últimos 7 dias">↑</span>
-                        )}
-                      </span>
+                      <div className="item-row-top">
+                        <span className="item-name">
+                          <span className={`dot dot-${item.status}`} />
+                          {item.name}
+                          {trend === 'down' && (
+                            <span className="trend trend-down" title="Caindo rápido — mudou nos últimos 7 dias">↓</span>
+                          )}
+                          {trend === 'up' && (
+                            <span className="trend trend-up" title="Estoque melhorou nos últimos 7 dias">↑</span>
+                          )}
+                        </span>
+                        <div className="item-actions">
+                          <button className="edit-btn" onClick={() => openEdit(item)} title="Editar item">
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                              <path d="M11.5 2.5a1.5 1.5 0 012.12 2.12l-8 8L3 14l1.38-2.62 8-8z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                            </svg>
+                          </button>
+                          <button className="delete-btn" onClick={() => setDeleteTarget(item)} title="Remover item">×</button>
+                        </div>
+                      </div>
                       <div className="status-buttons">
                         {STATUSES.map(s => (
                           <button
@@ -330,12 +340,6 @@ export default function Home() {
                           >{LABELS[s]}</button>
                         ))}
                       </div>
-                      <button className="edit-btn" onClick={() => openEdit(item)} title="Editar item">
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                          <path d="M11.5 2.5a1.5 1.5 0 012.12 2.12l-8 8L3 14l1.38-2.62 8-8z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                        </svg>
-                      </button>
-                      <button className="delete-btn" onClick={() => setDeleteTarget(item)} title="Remover item">×</button>
                     </div>
                   )
                 })
