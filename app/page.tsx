@@ -85,7 +85,7 @@ export default function Home() {
   }, [requestPhase])
 
   async function loadItems() {
-    const { data } = await supabase.from('almox_items').select('*').order('position')
+    const { data } = await supabase.from('almox_items').select('*').order('name')
     if (data) { setItems(data as Item[]); setLastUpdate(new Date()) }
     setLoading(false)
   }
@@ -190,12 +190,14 @@ export default function Home() {
   const categories   = ['Todos', ...categorySet]
   const showCatTabs  = categorySet.length > 1
 
-  const filtered = items.filter(i => {
-    const matchSearch = i.name.toLowerCase().includes(search.toLowerCase())
-    const matchCat    = activeCategory === 'Todos' || i.category === activeCategory
-    const matchStatus = activeStatus === 'todos'   || i.status   === activeStatus
-    return matchSearch && matchCat && matchStatus
-  })
+  const filtered = items
+    .filter(i => {
+      const matchSearch = i.name.toLowerCase().includes(search.toLowerCase())
+      const matchCat    = activeCategory === 'Todos' || i.category === activeCategory
+      const matchStatus = activeStatus === 'todos'   || i.status   === activeStatus
+      return matchSearch && matchCat && matchStatus
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }))
 
   const counts      = STATUSES.reduce((acc, s) => { acc[s] = items.filter(i => i.status === s).length; return acc }, {} as Record<Status, number>)
   const urgent      = items.filter(i => i.status === 'vazio' || i.status === 'baixo')
