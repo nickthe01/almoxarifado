@@ -44,9 +44,14 @@ export default function Home() {
   const [editName, setEditName]         = useState('')
   const [editCategory, setEditCategory] = useState('Outros')
   const [lastUpdate, setLastUpdate]     = useState<Date | null>(null)
-  const [copied, setCopied]             = useState(false)
-  const inputRef     = useRef<HTMLInputElement>(null)
-  const editInputRef = useRef<HTMLInputElement>(null)
+  const [copied, setCopied]               = useState(false)
+  const [requestList, setRequestList]     = useState<string[]>([])
+  const [requestPhase, setRequestPhase]   = useState<'idle' | 'suggesting' | 'building'>('idle')
+  const [requestInput, setRequestInput]   = useState('')
+  const [requestCopied, setRequestCopied] = useState(false)
+  const inputRef      = useRef<HTMLInputElement>(null)
+  const editInputRef  = useRef<HTMLInputElement>(null)
+  const reqInputRef   = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadItems()
@@ -64,6 +69,20 @@ export default function Home() {
   useEffect(() => {
     if (editTarget) setTimeout(() => editInputRef.current?.focus(), 60)
   }, [editTarget])
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('almox_request')
+      if (saved) {
+        const parsed: string[] = JSON.parse(saved)
+        if (parsed.length > 0) { setRequestList(parsed); setRequestPhase('building') }
+      }
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    if (requestPhase === 'building') setTimeout(() => reqInputRef.current?.focus(), 60)
+  }, [requestPhase])
 
   async function loadItems() {
     const { data } = await supabase.from('almox_items').select('*').order('position')
@@ -113,6 +132,43 @@ export default function Home() {
     setDeleteTarget(null)
   }
 
+  function saveRequest(list: string[]) {
+    setRequestList(list)
+    localStorage.setItem('almox_request', JSON.stringify(list))
+  }
+
+  function acceptSuggestions() {
+    const names = suggestions.map(i => i.name)
+    const merged = Array.from(new Set([...requestList, ...names]))
+    saveRequest(merged)
+    setRequestPhase('building')
+  }
+
+  function addToRequest(name: string) {
+    const trimmed = name.trim()
+    if (!trimmed || requestList.includes(trimmed)) return
+    saveRequest([...requestList, trimmed])
+    setRequestInput('')
+  }
+
+  function removeFromRequest(name: string) {
+    saveRequest(requestList.filter(n => n !== name))
+  }
+
+  function clearRequest() {
+    setRequestList([])
+    localStorage.removeItem('almox_request')
+    setRequestPhase('idle')
+  }
+
+  function copyRequest() {
+    const today = new Date().toLocaleDateString('pt-BR')
+    const text = `PEDIDO DE MATERIAL — PRÓXIMO SEMESTRE\nColégio Eleve — ${today}\n${'─'.repeat(40)}\n\n${requestList.map(n => `• ${n}`).join('\n')}`
+    navigator.clipboard.writeText(text)
+    setRequestCopied(true)
+    setTimeout(() => setRequestCopied(false), 2500)
+  }
+
   function copyReport() {
     const vazio  = items.filter(i => i.status === 'vazio')
     const baixo  = items.filter(i => i.status === 'baixo')
@@ -141,10 +197,11 @@ export default function Home() {
     return matchSearch && matchCat && matchStatus
   })
 
-  const counts  = STATUSES.reduce((acc, s) => { acc[s] = items.filter(i => i.status === s).length; return acc }, {} as Record<Status, number>)
-  const urgent  = items.filter(i => i.status === 'vazio' || i.status === 'baixo')
-  const metade  = items.filter(i => i.status === 'metade')
-  const cheio   = items.filter(i => i.status === 'cheio')
+  const counts      = STATUSES.reduce((acc, s) => { acc[s] = items.filter(i => i.status === s).length; return acc }, {} as Record<Status, number>)
+  const urgent      = items.filter(i => i.status === 'vazio' || i.status === 'baixo')
+  const metade      = items.filter(i => i.status === 'metade')
+  const cheio       = items.filter(i => i.status === 'cheio')
+  const suggestions = [...items.filter(i => i.status === 'vazio'), ...items.filter(i => i.status === 'baixo'), ...items.filter(i => i.status === 'metade')]
 
   const fmtDate = (d: Date) => d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
@@ -325,17 +382,85 @@ export default function Home() {
 
             <div className="report-section">
               <div className="report-section-label label-metade">
-                <span className="report-dot rdot-metade" />Próximo semestre
+                <span className="report-dot rdot-metade" />
+                Pedido — próximo semestre
               </div>
-              <p className="report-section-desc">Itens na metade do estoque</p>
-              {metade.length === 0 ? (
-                <p className="report-empty">Nenhum item na metade</p>
-              ) : metade.map(item => (
-                <div key={item.id} className="report-item">
-                  <span className="dot dot-metade" />
-                  <span className="report-item-name">{item.name}</span>
+
+              {/* Fase idle */}
+              {requestPhase === 'idle' && (
+                <div className="req-idle">
+                  <p className="report-section-desc">
+                    {suggestions.length > 0
+                      ? `${suggestions.length} item${suggestions.length > 1 ? 's' : ''} com estoque baixo ou na metade`
+                      : 'Estoque OK — nenhuma sugestão no momento'}
+                  </p>
+                  {suggestions.length > 0 ? (
+                    <button className="req-btn req-suggest" onClick={() => setRequestPhase('suggesting')}>
+                      Ver sugestões do sistema ({suggestions.length})
+                    </button>
+                  ) : (
+                    <button className="req-btn req-manual" onClick={() => setRequestPhase('building')}>
+                      Montar lista manualmente
+                    </button>
+                  )}
                 </div>
-              ))}
+              )}
+
+              {/* Fase sugestão */}
+              {requestPhase === 'suggesting' && (
+                <div className="req-suggest-phase">
+                  <p className="report-section-desc">Sugestão com base no estoque atual:</p>
+                  {suggestions.map(item => (
+                    <div key={item.id} className="report-item">
+                      <span className={`dot dot-${item.status}`} />
+                      <span className="report-item-name">{item.name}</span>
+                      <span className={`report-badge badge-${item.status}`}>{LABELS[item.status]}</span>
+                    </div>
+                  ))}
+                  <div className="req-suggest-actions">
+                    <button className="req-btn req-accept" onClick={acceptSuggestions}>
+                      ✓ Aceitar {suggestions.length} item{suggestions.length > 1 ? 'ns' : ''}
+                    </button>
+                    <button className="req-btn req-manual" onClick={() => setRequestPhase('building')}>
+                      Montar do zero
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Fase construção */}
+              {requestPhase === 'building' && (
+                <div className="req-build-phase">
+                  {requestList.length === 0
+                    ? <p className="report-empty">Lista vazia — adicione itens abaixo</p>
+                    : requestList.map(name => (
+                      <div key={name} className="req-item">
+                        <span className="req-item-name">• {name}</span>
+                        <button className="req-remove" onClick={() => removeFromRequest(name)}>×</button>
+                      </div>
+                    ))
+                  }
+                  <div className="req-input-row">
+                    <input
+                      ref={reqInputRef}
+                      className="req-input"
+                      type="text"
+                      placeholder="Adicionar item..."
+                      value={requestInput}
+                      onChange={e => setRequestInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && addToRequest(requestInput)}
+                      maxLength={80}
+                    />
+                    <button className="req-add-btn" onClick={() => addToRequest(requestInput)}>+</button>
+                  </div>
+                  <div className="req-footer-btns">
+                    <button className={`req-btn req-copy${requestCopied ? ' req-copied' : ''}`} onClick={copyRequest}>
+                      {requestCopied ? '✓ Copiado!' : '📋 Copiar pedido'}
+                    </button>
+                    <button className="req-btn req-clear" onClick={clearRequest}>Limpar</button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="report-section report-section-last">
