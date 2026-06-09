@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Almoxarifado</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f4f8;
+            min-height: 100vh;
+            padding: 24px 16px;
+        }
+
+        .container { max-width: 860px; margin: 0 auto; }
+
+        header {
+            background: white;
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #111;
+        }
+
+        header p { font-size: 13px; color: #777; margin-top: 3px; }
+
+        .logo {
+            width: 42px; height: 42px;
+            background: #16a34a;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .logo svg { color: white; }
+
+        /* Summary cards */
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .summary-card {
+            background: white;
+            border-radius: 12px;
+            padding: 14px 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+            text-align: center;
+            border-top: 3px solid transparent;
+        }
+
+        .summary-card .count { font-size: 28px; font-weight: 700; }
+        .summary-card .label { font-size: 12px; color: #666; font-weight: 600; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.4px; }
+
+        .s-cheio  { border-color: #16a34a; } .s-cheio  .count { color: #16a34a; }
+        .s-metade { border-color: #d97706; } .s-metade .count { color: #d97706; }
+        .s-baixo  { border-color: #ea580c; } .s-baixo  .count { color: #ea580c; }
+        .s-vazio  { border-color: #dc2626; } .s-vazio  .count { color: #dc2626; }
+
+        /* Main card */
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .card-header h2 { font-size: 14px; font-weight: 600; color: #444; }
+
+        .col-labels {
+            display: flex;
+            gap: 4px;
+            margin-right: 36px;
+        }
+
+        .col-label {
+            width: 74px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Item rows */
+        .item-row {
+            display: flex;
+            align-items: center;
+            padding: 11px 20px;
+            border-bottom: 1px solid #f5f5f5;
+            transition: background 0.12s;
+            gap: 12px;
+        }
+
+        .item-row:last-child { border-bottom: none; }
+        .item-row:hover { background: #fafafa; }
+
+        .item-name {
+            flex: 1;
+            font-size: 15px;
+            font-weight: 500;
+            color: #1a1a1a;
+            min-width: 0;
+        }
+
+        .status-buttons { display: flex; gap: 4px; }
+
+        .status-btn {
+            width: 74px;
+            padding: 8px 4px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.14s;
+            background: #f0f0f0;
+            color: #888;
+        }
+
+        .status-btn:hover { filter: brightness(0.93); }
+
+        .status-btn.active-cheio  { background: #16a34a; color: white; }
+        .status-btn.active-metade { background: #d97706; color: white; }
+        .status-btn.active-baixo  { background: #ea580c; color: white; }
+        .status-btn.active-vazio  { background: #dc2626; color: white; }
+
+        /* Status dot on item name */
+        .status-dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            vertical-align: middle;
+            flex-shrink: 0;
+        }
+
+        .dot-cheio  { background: #16a34a; }
+        .dot-metade { background: #d97706; }
+        .dot-baixo  { background: #ea580c; }
+        .dot-vazio  { background: #dc2626; }
+
+        .delete-btn {
+            width: 28px; height: 28px;
+            background: none;
+            border: none;
+            color: #d1d5db;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 18px;
+            line-height: 1;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.14s;
+            flex-shrink: 0;
+        }
+
+        .delete-btn:hover { background: #fee2e2; color: #dc2626; }
+
+        /* Add button */
+        .add-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 14px;
+            background: white;
+            border: 2px dashed #d1d5db;
+            border-radius: 14px;
+            color: #777;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s;
+            margin-bottom: 20px;
+        }
+
+        .add-btn:hover {
+            border-color: #16a34a;
+            color: #16a34a;
+            background: #f0fdf4;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #b0b8c4;
+            padding-bottom: 8px;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.35);
+            z-index: 100;
+            align-items: center; justify-content: center;
+            padding: 16px;
+        }
+
+        .modal-overlay.open { display: flex; }
+
+        .modal {
+            background: white;
+            border-radius: 18px;
+            padding: 28px 24px 24px;
+            width: 100%; max-width: 360px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+            animation: slideUp 0.18s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(10px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+        }
+
+        .modal h3 { font-size: 17px; font-weight: 700; color: #111; margin-bottom: 16px; }
+
+        .modal input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.15s;
+            margin-bottom: 16px;
+            font-family: inherit;
+        }
+
+        .modal input:focus { border-color: #16a34a; }
+
+        .modal-actions { display: flex; gap: 10px; }
+
+        .btn-cancel {
+            flex: 1; padding: 11px;
+            border: 2px solid #e5e7eb;
+            background: white;
+            border-radius: 10px;
+            font-size: 14px; font-weight: 600;
+            cursor: pointer; color: #666;
+            transition: all 0.14s;
+            font-family: inherit;
+        }
+
+        .btn-cancel:hover { background: #f9fafb; }
+
+        .btn-confirm {
+            flex: 1; padding: 11px;
+            border: none;
+            background: #16a34a;
+            border-radius: 10px;
+            font-size: 14px; font-weight: 600;
+            cursor: pointer; color: white;
+            transition: all 0.14s;
+            font-family: inherit;
+        }
+
+        .btn-confirm:hover { background: #15803d; }
+
+        /* Empty state */
+        .empty-state {
+            padding: 40px 20px;
+            text-align: center;
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        @media (max-width: 600px) {
+            .summary { grid-template-columns: repeat(2, 1fr); }
+            .col-labels { display: none; }
+            .status-btn { width: 62px; font-size: 12px; padding: 8px 2px; }
+            header { flex-direction: column; align-items: flex-start; gap: 8px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <header>
+        <div>
+            <h1>Controle de Almoxarifado</h1>
+            <p>Colégio Eleve — registro de estoque de materiais</p>
+        </div>
+        <div class="logo">
+            <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
+                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M9 22V12h6v10" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+        </div>
+    </header>
+
+    <div class="summary" id="summary"></div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2>Materiais</h2>
+            <div class="col-labels">
+                <span class="col-label">Cheio</span>
+                <span class="col-label">Metade</span>
+                <span class="col-label">Baixo</span>
+                <span class="col-label">Vazio</span>
+            </div>
+        </div>
+        <div id="items-container"></div>
+    </div>
+
+    <button class="add-btn" onclick="openModal()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+        Adicionar novo item
+    </button>
+
+    <p class="footer" id="footer-ts"></p>
+
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
+    <div class="modal">
+        <h3>Adicionar novo item</h3>
+        <input
+            type="text"
+            id="new-item-input"
+            placeholder="Nome do material..."
+            onkeydown="if(event.key==='Enter') confirmAdd()"
+            maxlength="80"
+        />
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+            <button class="btn-confirm" onclick="confirmAdd()">Adicionar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const DEFAULT_ITEMS = [
+        'Cartolina', 'Massinha', 'Glitter', 'Lantejola',
+        'Fita de PVC grossa', 'Color set A3', 'Argilinha',
+        'Papel microondulado', 'Papel cartão', 'Papel contact'
+    ];
+
+    const STATUSES = ['cheio', 'metade', 'baixo', 'vazio'];
+    const LABELS   = { cheio: 'Cheio', metade: 'Metade', baixo: 'Baixo', vazio: 'Vazio' };
+
+    function loadItems() {
+        try {
+            const raw = localStorage.getItem('almox_items');
+            if (raw) return JSON.parse(raw);
+        } catch(e) {}
+        return DEFAULT_ITEMS.map((name, i) => ({ id: i + 1, name, status: 'cheio' }));
+    }
+
+    function saveItems() {
+        localStorage.setItem('almox_items', JSON.stringify(items));
+        localStorage.setItem('almox_ts', new Date().toISOString());
+        renderFooter();
+    }
+
+    let items = loadItems();
+    let nextId = Math.max(0, ...items.map(i => i.id)) + 1;
+
+    function setStatus(id, status) {
+        const item = items.find(i => i.id === id);
+        if (item) { item.status = status; saveItems(); render(); }
+    }
+
+    function deleteItem(id) {
+        const item = items.find(i => i.id === id);
+        if (!item) return;
+        if (!confirm(`Remover "${item.name}" da lista?`)) return;
+        items = items.filter(i => i.id !== id);
+        saveItems();
+        render();
+    }
+
+    function render() {
+        const container = document.getElementById('items-container');
+        if (!items.length) {
+            container.innerHTML = '<div class="empty-state">Nenhum item cadastrado ainda.</div>';
+            renderSummary();
+            return;
+        }
+
+        container.innerHTML = '';
+        items.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'item-row';
+
+            // Dot + Name
+            const nameEl = document.createElement('span');
+            nameEl.className = 'item-name';
+            nameEl.innerHTML = `<span class="status-dot dot-${item.status}"></span>${escHtml(item.name)}`;
+
+            // Buttons
+            const btns = document.createElement('div');
+            btns.className = 'status-buttons';
+            STATUSES.forEach(s => {
+                const btn = document.createElement('button');
+                btn.className = 'status-btn' + (item.status === s ? ` active-${s}` : '');
+                btn.textContent = LABELS[s];
+                btn.title = LABELS[s];
+                btn.onclick = () => setStatus(item.id, s);
+                btns.appendChild(btn);
+            });
+
+            // Delete
+            const del = document.createElement('button');
+            del.className = 'delete-btn';
+            del.innerHTML = '&times;';
+            del.title = 'Remover item';
+            del.onclick = () => deleteItem(item.id);
+
+            row.appendChild(nameEl);
+            row.appendChild(btns);
+            row.appendChild(del);
+            container.appendChild(row);
+        });
+
+        renderSummary();
+    }
+
+    function renderSummary() {
+        const counts = { cheio: 0, metade: 0, baixo: 0, vazio: 0 };
+        items.forEach(i => counts[i.status]++);
+
+        document.getElementById('summary').innerHTML = STATUSES.map(s => `
+            <div class="summary-card s-${s}">
+                <div class="count">${counts[s]}</div>
+                <div class="label">${LABELS[s]}</div>
+            </div>
+        `).join('');
+    }
+
+    function renderFooter() {
+        const ts = localStorage.getItem('almox_ts');
+        if (!ts) return;
+        const d = new Date(ts);
+        const fmt = d.toLocaleString('pt-BR', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+        document.getElementById('footer-ts').textContent = `Última atualização: ${fmt}`;
+    }
+
+    function escHtml(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // Modal
+    function openModal() {
+        document.getElementById('modal').classList.add('open');
+        setTimeout(() => document.getElementById('new-item-input').focus(), 60);
+    }
+
+    function closeModal() {
+        document.getElementById('modal').classList.remove('open');
+        document.getElementById('new-item-input').value = '';
+    }
+
+    function closeModalOutside(e) {
+        if (e.target === document.getElementById('modal')) closeModal();
+    }
+
+    function confirmAdd() {
+        const input = document.getElementById('new-item-input');
+        const name = input.value.trim();
+        if (!name) { input.focus(); return; }
+        items.push({ id: nextId++, name, status: 'cheio' });
+        saveItems();
+        render();
+        closeModal();
+    }
+
+    // Init
+    render();
+    renderFooter();
+</script>
+</body>
+</html>
